@@ -52,7 +52,7 @@ require (
 	github.com/DATA-DOG/go-sqlmock v1.5.2
 	github.com/google/go-github/v74 v74.0.0
 	github.com/lib/pq v1.12.3
-	github.com/rook/rook/pkg/apis v0.0.0-20260618182027-f77e54dce562
+	github.com/rook/rook/pkg/apis v0.0.0-20260624112003-72110d767cca
 )
 
 require (
@@ -241,23 +241,23 @@ require (
 	github.com/go-openapi/analysis v0.24.3 // indirect
 	github.com/go-openapi/errors v0.22.7 // indirect
 	github.com/go-openapi/jsonpointer v0.23.1 // indirect
-	github.com/go-openapi/jsonreference v0.21.5 // indirect
+	github.com/go-openapi/jsonreference v0.21.6 // indirect
 	github.com/go-openapi/loads v0.23.3 // indirect
 	github.com/go-openapi/runtime v0.29.3 // indirect
 	github.com/go-openapi/spec v0.22.4 // indirect
 	github.com/go-openapi/strfmt v0.26.1 // indirect
-	github.com/go-openapi/swag v0.26.0 // indirect
-	github.com/go-openapi/swag/cmdutils v0.26.0 // indirect
-	github.com/go-openapi/swag/conv v0.26.0 // indirect
-	github.com/go-openapi/swag/fileutils v0.26.0 // indirect
-	github.com/go-openapi/swag/jsonname v0.26.0 // indirect
-	github.com/go-openapi/swag/jsonutils v0.26.0 // indirect
-	github.com/go-openapi/swag/loading v0.26.0 // indirect
-	github.com/go-openapi/swag/mangling v0.26.0 // indirect
-	github.com/go-openapi/swag/netutils v0.26.0 // indirect
-	github.com/go-openapi/swag/stringutils v0.26.0 // indirect
-	github.com/go-openapi/swag/typeutils v0.26.0 // indirect
-	github.com/go-openapi/swag/yamlutils v0.26.0 // indirect
+	github.com/go-openapi/swag v0.26.1 // indirect
+	github.com/go-openapi/swag/cmdutils v0.26.1 // indirect
+	github.com/go-openapi/swag/conv v0.26.1 // indirect
+	github.com/go-openapi/swag/fileutils v0.26.1 // indirect
+	github.com/go-openapi/swag/jsonname v0.26.1 // indirect
+	github.com/go-openapi/swag/jsonutils v0.26.1 // indirect
+	github.com/go-openapi/swag/loading v0.26.1 // indirect
+	github.com/go-openapi/swag/mangling v0.26.1 // indirect
+	github.com/go-openapi/swag/netutils v0.26.1 // indirect
+	github.com/go-openapi/swag/stringutils v0.26.1 // indirect
+	github.com/go-openapi/swag/typeutils v0.26.1 // indirect
+	github.com/go-openapi/swag/yamlutils v0.26.1 // indirect
 	github.com/go-openapi/validate v0.25.2 // indirect
 	github.com/go-restruct/restruct v1.2.0-alpha // indirect
 	github.com/go-toolsmith/astcast v1.1.0 // indirect
@@ -541,7 +541,7 @@ require (
 	github.com/exponent-io/jsonpath v0.0.0-20210407135951-1de76d718b3f // indirect
 	github.com/extism/go-sdk v1.7.1 // indirect
 	github.com/fluxcd/cli-utils v1.2.1 // indirect
-	github.com/fxamacker/cbor/v2 v2.9.1 // indirect
+	github.com/fxamacker/cbor/v2 v2.9.2 // indirect
 	github.com/getsops/gopgagent v0.0.0-20241224165529-7044f28e491e // indirect
 	github.com/go-errors/errors v1.5.1 // indirect
 	github.com/go-gorp/gorp/v3 v3.1.0 // indirect
@@ -631,7 +631,7 @@ require (
 	k8s.io/cli-runtime v0.36.2 // indirect
 	k8s.io/component-base v0.36.2 // indirect
 	k8s.io/klog/v2 v2.140.0 // indirect
-	k8s.io/kube-openapi v0.0.0-20260502001324-b7f5293f4787 // indirect
+	k8s.io/kube-openapi v0.0.0-20260603220949-865597e52e25 // indirect
 	k8s.io/kubectl v0.36.1 // indirect
 	k8s.io/streaming v0.36.2 // indirect
 	oras.land/oras-go/v2 v2.6.1 // indirect
