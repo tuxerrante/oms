@@ -227,6 +227,18 @@ var _ = Describe("PortalClient", func() {
 		})
 	})
 
+	Describe("HttpRequest", func() {
+		BeforeEach(func() {
+			mockEnv.EXPECT().GetOmsPortalApi().Return(apiUrl)
+		})
+
+		It("returns an error when the request cannot be created", func() {
+			_, err := client.HttpRequest("GET\n", "/api/fake", nil)
+			Expect(err).To(HaveOccurred())
+			Expect(err.Error()).To(ContainSubstring("failed to create request"))
+		})
+	})
+
 	Describe("ListCodespherePackages", func() {
 		Context("when the request succeeds", func() {
 			BeforeEach(func() {

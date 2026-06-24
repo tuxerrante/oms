@@ -30,8 +30,7 @@ func NewHttpWrapper() *HttpWrapper {
 func (c *HttpWrapper) Request(url string, method string, body io.Reader) (responseBody []byte, err error) {
 	req, err := http.NewRequest(method, url, body)
 	if err != nil {
-		log.Fatalf("Error creating request: %v", err)
-		return
+		return []byte{}, fmt.Errorf("failed to create request: %w", err)
 	}
 
 	resp, err := c.HttpClient.Do(req)

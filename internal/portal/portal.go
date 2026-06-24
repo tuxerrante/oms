@@ -129,8 +129,7 @@ func (c *PortalClient) HttpRequest(method string, path string, body []byte) (*ht
 
 	req, err := http.NewRequest(method, url, requestBody)
 	if err != nil {
-		log.Fatalf("failed to create request: %v", err)
-		return nil, err
+		return nil, fmt.Errorf("failed to create request: %w", err)
 	}
 	if len(body) > 0 {
 		req.Header.Set("Content-Type", "application/json")
