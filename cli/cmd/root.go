@@ -59,8 +59,8 @@ func GetRootCmd() *cobra.Command {
 				}
 				opts.OmsPortalApiKey = newApiKey
 
-				log.Println("Please update your environment variable:")
-				log.Printf("  export OMS_PORTAL_API_KEY='%s'\n\n", newApiKey)
+				log.Println("Please update your OMS_PORTAL_API_KEY environment variable with the upgraded key value.")
+				log.Println("  export OMS_PORTAL_API_KEY='<upgraded-api-key>'")
 			}
 		},
 	}
