@@ -1,9 +1,6 @@
 // Copyright (c) Codesphere Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-//go:build integration
-// +build integration
-
 package cmd_test
 
 import (
@@ -32,11 +29,9 @@ var _ = Describe("API Key Integration Tests", func() {
 	)
 
 	BeforeEach(func() {
+		requirePortalIntegrationEnv()
+
 		apiKey := os.Getenv("OMS_PORTAL_API_KEY")
-		apiURL := os.Getenv("OMS_PORTAL_API")
-		if apiKey == "" || apiURL == "" {
-			Fail("Integration tests require OMS_PORTAL_API_KEY and OMS_PORTAL_API environment variables")
-		}
 
 		originalAdminKey = apiKey
 

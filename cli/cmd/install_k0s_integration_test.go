@@ -1,9 +1,6 @@
 // Copyright (c) Codesphere Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-//go:build integration
-// +build integration
-
 package cmd_test
 
 import (
@@ -27,6 +24,8 @@ var _ = Describe("K0s Install-Config Integration", func() {
 	)
 
 	BeforeEach(func() {
+		requireIntegrationTestsEnabled()
+
 		var err error
 		tempDir, err = os.MkdirTemp("", "k0s-integration-test-*")
 		Expect(err).NotTo(HaveOccurred())
