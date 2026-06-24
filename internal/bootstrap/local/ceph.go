@@ -532,6 +532,8 @@ func (b *LocalBootstrapper) appendCephMonitorArgs(args []string) ([]string, erro
 	}, args...), nil
 }
 
+// rgwExecPrerequisites caches the monitor/admin-auth inputs reused by the
+// repeated radosgw-admin calls within one local bootstrap run.
 func (b *LocalBootstrapper) rgwExecPrerequisites() (*rgwExecPrerequisites, error) {
 	if b.cachedRGWExecPrereqs != nil {
 		return b.cachedRGWExecPrereqs, nil
@@ -744,6 +746,8 @@ func (b *LocalBootstrapper) execInPod(namespace, podName, containerName string, 
 	return stdout.String(), stderr.String(), err
 }
 
+// podExecClientset keeps one typed clientset for pod exec requests instead of
+// recreating it for each radosgw-admin invocation.
 func (b *LocalBootstrapper) podExecClientset() (kubernetesClientset, error) {
 	if b.cachedPodExecClientset != nil {
 		return b.cachedPodExecClientset, nil
