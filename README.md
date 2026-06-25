@@ -81,6 +81,93 @@ See our [Usage Documentation](docs) for usage information about the specific sub
 make build-cli
 ```
 
+### macOS arm64 local bootstrap
+
+`oms beta bootstrap-local` is viable on macOS arm64 when the CLI runs on your
+Mac and the Kubernetes cluster runs inside a Linux VM-backed environment. The
+cluster still needs Linux worker nodes and storage suitable for Rook/Ceph; do
+not use a host-native macOS cluster for this flow.
+
+Install the Homebrew prerequisites listed in
+`hack/bootstrap-local-macos-requirements.txt`, for example:
+
+```shell
+brew install age helm kubectl lima lima-additional-guestagents node sops
+```
+
+`lima-additional-guestagents` is required on Homebrew-based macOS setups so
+Lima can boot a Linux `x86_64` guest. Without it, `make run-lima-on-macos`
+fails with `guest agent binary could not be found for Linux-x86_64`.
+
+Recommended first-run sequence:
+
+```shell
+make run-lima-on-macos
+make install-k0s-in-lima
+
+OMS_REGISTRY_USER='<github-user-or-service-account>' \
+OMS_INSTALL_LOCAL='/absolute/path/to/installer-lite.tar.gz' \
+make bootstrap-local-on-macos
+```
+
+The Makefile flow does the following:
+
+- `make run-lima-on-macos` starts the Linux VM.
+- If the first Lima start created the instance and then failed, rerunning
+  `make run-lima-on-macos` now resumes the existing `lima-oms` instance instead
+  of failing with `instance "lima-oms" already exists`.
+- `make install-k0s-in-lima` installs a single-node k0s cluster in that VM and
+  writes host kubeconfig to `~/.kube/lima-oms.yaml`, rewritten to use
+  `https://127.0.0.1:6443` via Lima port forwarding.
+- `make bootstrap-local-on-macos` runs `oms beta bootstrap-local --k0s` from
+  macOS against that kubeconfig.
+
+If you already created a `lima-oms` instance before the `6443` port forward was
+added, recreate it once so the host kubeconfig can reach the API server:
+
+```shell
+make stop-lima
+make run-lima-on-macos
+```
+
+Registry password handling for first-time contributors:
+
+- OMS does not generate or derive the registry password locally.
+- The local flow expects credentials for `ghcr.io` with access to the private
+  `codesphere-cloud` packages used by the installer.
+- Pass the username via `OMS_REGISTRY_USER`.
+- Provide the password/token via `OMS_REGISTRY_PASSWORD`, or leave that unset
+  and enter it when `oms` prompts interactively.
+
+Installer bundle handling:
+
+- If you already have an installer bundle, set
+  `OMS_INSTALL_LOCAL=/absolute/path/to/installer-lite.tar.gz`.
+- If you want OMS to download it from the portal instead, set
+  `OMS_INSTALL_VERSION`, `OMS_INSTALL_HASH`, and `OMS_PORTAL_API_KEY` before
+  running `make bootstrap-local-on-macos`.
+
+If CIDR auto-discovery does not work in your cluster, pass the flags through
+`OMS_BOOTSTRAP_LOCAL_ARGS`:
+
+```shell
+OMS_BOOTSTRAP_LOCAL_ARGS='--service-cidr 10.96.0.0/12 --pod-cidr 10.244.0.0/16' \
+OMS_REGISTRY_USER='<github-user-or-service-account>' \
+OMS_INSTALL_LOCAL='/absolute/path/to/installer-lite.tar.gz' \
+make bootstrap-local-on-macos
+```
+
+Practical notes:
+
+- If your local cluster does not provide `LoadBalancer` services, install a
+  local load balancer such as MetalLB inside the Linux VM-backed cluster.
+- The default `hack/lima-oms.yaml` VM does not attach a dedicated extra block
+  device for Rook/Ceph yet. On a clean Lima VM, `make bootstrap-local-on-macos`
+  currently gets through k0s and into the Rook bootstrap, but CephFS stays
+  blocked until you provide a Ceph-suitable disk to the guest.
+- `make install-k0s-in-lima` assumes the repo checkout lives under your macOS
+  home directory so Lima can access it through the default host-home mount.
+
 See also [CONTRIBUTION.md]
 
 ## Service

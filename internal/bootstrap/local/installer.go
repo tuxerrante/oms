@@ -4,9 +4,11 @@
 package local
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"log"
+	"net"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -34,6 +36,7 @@ var installerComponentSteps = []string{"setUpCluster", "codesphere", "msBackends
 const installerArtifactFilename = "installer-lite.tar.gz"
 
 const temporaryPostgresNodePortPrefix = "oms-masterdata-nodeport"
+const installerPortForwardReadyTimeout = 15 * time.Second
 
 // DownloadInstallerPackage downloads the Codesphere installer package from the
 // OMS portal, similar to how the GCP bootstrapper fetches it onto a jumpbox.
@@ -316,6 +319,129 @@ func (b *LocalBootstrapper) createTemporaryPostgresNodePortEndpoint() (string, i
 	return nodeIP, tmpService.Spec.Ports[0].NodePort, cleanup, nil
 }
 
+func useLocalPortForwardForInstaller(goos string) bool {
+	return goos != "linux"
+}
+
+func buildPostgresPortForwardArgs(localPort int, remotePort int32) []string {
+	return []string{
+		"-n", codesphereNamespace,
+		"port-forward",
+		"svc/masterdata-rw",
+		fmt.Sprintf("%d:%d", localPort, remotePort),
+		"--address", "127.0.0.1",
+	}
+}
+
+func reserveLocalPort() (int, error) {
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		return 0, fmt.Errorf("failed to reserve local port for kubectl port-forward: %w", err)
+	}
+	defer listener.Close()
+
+	address, ok := listener.Addr().(*net.TCPAddr)
+	if !ok {
+		return 0, fmt.Errorf("failed to determine reserved TCP port")
+	}
+
+	return address.Port, nil
+}
+
+func (b *LocalBootstrapper) createTemporaryPostgresPortForwardEndpoint() (string, int32, func(), error) {
+	masterdataSvc := &corev1.Service{}
+	masterdataSvcKey := types.NamespacedName{Name: "masterdata-rw", Namespace: codesphereNamespace}
+	if err := b.kubeClient.Get(b.ctx, masterdataSvcKey, masterdataSvc); err != nil {
+		return "", 0, nil, fmt.Errorf("failed to get PostgreSQL service %s/%s: %w", codesphereNamespace, "masterdata-rw", err)
+	}
+
+	postgresPort, err := getPostgresServicePort(masterdataSvc)
+	if err != nil {
+		return "", 0, nil, err
+	}
+
+	localPort, err := reserveLocalPort()
+	if err != nil {
+		return "", 0, nil, err
+	}
+
+	kubectlPath, err := exec.LookPath("kubectl")
+	if err != nil {
+		return "", 0, nil, fmt.Errorf("kubectl binary not found in PATH; install it with: brew install kubectl")
+	}
+
+	cmdArgs := buildPostgresPortForwardArgs(localPort, postgresPort.Port)
+	cmd := exec.CommandContext(b.ctx, kubectlPath, cmdArgs...)
+
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
+
+	if err := cmd.Start(); err != nil {
+		return "", 0, nil, fmt.Errorf("failed to start kubectl port-forward for PostgreSQL: %w", err)
+	}
+
+	waitCh := make(chan error, 1)
+	go func() {
+		waitCh <- cmd.Wait()
+	}()
+
+	cleanup := func() {
+		if cmd.Process == nil {
+			return
+		}
+
+		if cmd.ProcessState != nil && cmd.ProcessState.Exited() {
+			return
+		}
+
+		if err := cmd.Process.Kill(); err != nil && !errors.Is(err, os.ErrProcessDone) {
+			log.Printf("Warning: failed to stop PostgreSQL port-forward: %v", err)
+		}
+
+		select {
+		case <-waitCh:
+		case <-time.After(2 * time.Second):
+		}
+	}
+
+	readyDeadline := time.NewTimer(installerPortForwardReadyTimeout)
+	defer readyDeadline.Stop()
+
+	portForwardReadyLine := fmt.Sprintf("Forwarding from 127.0.0.1:%d -> %d", localPort, postgresPort.Port)
+	for {
+		select {
+		case err := <-waitCh:
+			cleanup()
+			return "", 0, nil, fmt.Errorf(
+				"kubectl port-forward for PostgreSQL exited before becoming ready: %w (%s)",
+				err,
+				strings.TrimSpace(stderr.String()),
+			)
+		case <-readyDeadline.C:
+			cleanup()
+			return "", 0, nil, fmt.Errorf(
+				"timed out waiting for kubectl port-forward for PostgreSQL to become ready (%s)",
+				strings.TrimSpace(stderr.String()),
+			)
+		default:
+			if strings.Contains(stdout.String(), portForwardReadyLine) || strings.Contains(stderr.String(), portForwardReadyLine) {
+				return "127.0.0.1", int32(localPort), cleanup, nil
+			}
+			time.Sleep(100 * time.Millisecond)
+		}
+	}
+}
+
+func (b *LocalBootstrapper) createInstallerDatabaseEndpoint() (string, int32, func(), error) {
+	if useLocalPortForwardForInstaller(runtime.GOOS) {
+		return b.createTemporaryPostgresPortForwardEndpoint()
+	}
+
+	return b.createTemporaryPostgresNodePortEndpoint()
+}
+
 func getPostgresServicePort(svc *corev1.Service) (corev1.ServicePort, error) {
 	for _, port := range svc.Spec.Ports {
 		if port.Port == 5432 {
@@ -477,16 +603,15 @@ func (b *LocalBootstrapper) RunInstaller() (err error) {
 		return fmt.Errorf("failed to resolve absolute key path: %w", err)
 	}
 
-	// Create a temporary NodePort service for PostgreSQL so that
-	// install-components.js can reach the database without a long-lived
-	// kubectl port-forward session.
-	dbHost, dbPort, cleanupNodePortSvc, err := b.createTemporaryPostgresNodePortEndpoint()
+	// On macOS and other non-Linux hosts, prefer kubectl port-forward so the
+	// installer can reliably reach PostgreSQL through localhost.
+	dbHost, dbPort, cleanupDatabaseEndpoint, err := b.createInstallerDatabaseEndpoint()
 	if err != nil {
 		return err
 	}
-	defer cleanupNodePortSvc()
+	defer cleanupDatabaseEndpoint()
 
-	log.Printf("Temporary PostgreSQL NodePort service ready (%s:%d)", dbHost, dbPort)
+	log.Printf("Temporary PostgreSQL installer endpoint ready (%s:%d)", dbHost, dbPort)
 
 	restoreMigrationConfig, err := b.configurePostgresForMigration(dbHost, dbPort)
 	if err != nil {

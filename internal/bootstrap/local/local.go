@@ -10,6 +10,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 
 	"github.com/codesphere-cloud/oms/internal/bootstrap"
@@ -380,6 +381,14 @@ func (b *LocalBootstrapper) ReadClusterCIDRs() (podCIDR string, serviceCIDR stri
 			return podCIDR, serviceCIDR, nil
 		}
 
+		if !shouldReadServiceCIDRFromProc(runtime.GOOS) {
+			return podCIDR, "", fmt.Errorf(
+				"failed to determine service CIDR from the Kubernetes API on %s; rerun with --service-cidr (and --pod-cidr if needed): %w",
+				runtime.GOOS,
+				err,
+			)
+		}
+
 		log.Printf("can't read service CIDR from cluster, trying proc filesystem next: %s", err)
 
 		serviceCIDR, err = b.readServiceCIDRFromProc()
@@ -472,6 +481,10 @@ func serviceCIDRFromArgs(args []string) string {
 	}
 
 	return ""
+}
+
+func shouldReadServiceCIDRFromProc(goos string) bool {
+	return goos == "linux"
 }
 
 // readServiceCIDRFromProc reads the service CIDR from the api server process on the local machine
