@@ -68,6 +68,8 @@ type K0sctlApplyHooks struct {
 	After  []string `yaml:"after,omitempty"`
 }
 
+var singleHostControllerInstallFlags = []string{"--no-taints"}
+
 func createK0sctlHost(node files.K8sNode, role string, installFlags []string, sshKeyPath string, k0sBinaryPath string) K0sctlHost {
 	host := K0sctlHost{
 		Role: role,
@@ -125,12 +127,32 @@ func GenerateK0sctlConfig(installConfig *files.RootConfig, k0sVersion string, ss
 
 	// Track added IPs to avoid duplicates
 	addedIPs := make(map[string]bool)
-
-	// Add controller-only nodes from control planes
 	for _, cp := range installConfig.Kubernetes.ControlPlanes {
-		host := createK0sctlHost(cp, "controller", nil, sshKeyPath, k0sBinaryPath)
+		if cp.IPAddress != "" {
+			addedIPs[cp.IPAddress] = true
+		}
+	}
+	hasDedicatedWorkers := false
+	for _, worker := range installConfig.Kubernetes.Workers {
+		if worker.IPAddress != "" && !addedIPs[worker.IPAddress] {
+			hasDedicatedWorkers = true
+			break
+		}
+	}
+
+	// A one-host cluster still needs workloads enabled locally; otherwise k0s
+	// starts a controller-only API server and never registers a schedulable node.
+	controllerRole := "controller"
+	var controllerInstallFlags []string
+	if len(installConfig.Kubernetes.ControlPlanes) == 1 && !hasDedicatedWorkers {
+		controllerRole = "controller+worker"
+		controllerInstallFlags = singleHostControllerInstallFlags
+	}
+
+	// Add controller nodes from control planes.
+	for _, cp := range installConfig.Kubernetes.ControlPlanes {
+		host := createK0sctlHost(cp, controllerRole, controllerInstallFlags, sshKeyPath, k0sBinaryPath)
 		k0sctlConfig.Spec.Hosts = append(k0sctlConfig.Spec.Hosts, host)
-		addedIPs[cp.IPAddress] = true
 	}
 
 	// Add dedicated worker nodes if present

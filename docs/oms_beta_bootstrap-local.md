@@ -6,6 +6,7 @@ Bootstrap a local Codesphere environment
 
 Bootstraps a local Codesphere environment using a single Linux x86_64 Kubernetes cluster.
 Rook is used to install Ceph, and CNPG is used for the PostgreSQL database.
+On macOS, use a macOS host with a Linux VM-backed Kubernetes cluster.
 For local setups, use Minikube with a virtual machine on Linux.
 Not for production use.
 
@@ -27,7 +28,7 @@ oms beta bootstrap-local [flags]
       --install-local string        Path to a local installer package (tar.gz or unpacked directory)
       --install-version string      Codesphere version to install (downloaded from the OMS portal)
       --k0s                         Use k0s-specific configuration (required to deploy to k0s clusters)
-      --pod-cidr string             Service CIDR of the Kubernetes cluster. If not specified, OMS will try to determine it.
+      --pod-cidr string             Pod CIDR of the Kubernetes cluster. If not specified, OMS will try to determine it.
       --profile string              Profile to apply to the install config like resources (supported: dev, minimal, prod) (default "dev")
       --registry-url string         OCI registry URL used for the ArgoCD helm pull secret (only relevant with --argocd) (default "oci://ghcr.io/codesphere-cloud/charts")
       --registry-user string        Custom Registry username (optional)

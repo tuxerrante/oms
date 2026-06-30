@@ -1,0 +1,19 @@
+age
+helm
+kubectl
+lima
+lima-additional-guestagents
+node
+sops
+
+# Manual prerequisites:
+# - Install lima-additional-guestagents when using Homebrew so Lima can boot
+#   Linux x86_64 guests on macOS.
+# - Run the flow from a repo checkout located under your macOS home directory so
+#   Lima can access it through the default host-home mount.
+# - Provide OMS_REGISTRY_USER and a GHCR credential with access to the private
+#   codesphere-cloud packages. Set OMS_REGISTRY_PASSWORD ahead of time or enter
+#   it when oms prompts for it.
+# - Provide either OMS_INSTALL_LOCAL=/absolute/path/to/installer-lite.tar.gz or
+#   OMS_INSTALL_VERSION + OMS_INSTALL_HASH + OMS_PORTAL_API_KEY to download the
+#   installer bundle from the OMS portal.

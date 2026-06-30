@@ -12,6 +12,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 
 	"golang.org/x/term"
@@ -27,7 +28,7 @@ import (
 	"github.com/spf13/cobra"
 	"golang.org/x/mod/semver"
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/runtime"
+	kruntime "k8s.io/apimachinery/pkg/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
 	ctrlclient "sigs.k8s.io/controller-runtime/pkg/client"
@@ -58,6 +59,7 @@ func AddBootstrapLocalCmd(parent *cobra.Command) {
 			Short: "Bootstrap a local Codesphere environment",
 			Long: csio.Long(`Bootstraps a local Codesphere environment using a single Linux x86_64 Kubernetes cluster.
 				Rook is used to install Ceph, and CNPG is used for the PostgreSQL database.
+				On macOS, use a macOS host with a Linux VM-backed Kubernetes cluster.
 				For local setups, use Minikube with a virtual machine on Linux.
 				Not for production use.`),
 		},
@@ -81,7 +83,7 @@ func AddBootstrapLocalCmd(parent *cobra.Command) {
 	flags.BoolVar(&bootstrapLocalCmd.CodesphereEnv.K0s, "k0s", false, "Use k0s-specific configuration (required to deploy to k0s clusters)")
 
 	flags.StringVar(&bootstrapLocalCmd.CodesphereEnv.ServiceCIDR, "service-cidr", "", "Service CIDR of the Kubernetes cluster. If not specified, OMS will try to determine it.")
-	flags.StringVar(&bootstrapLocalCmd.CodesphereEnv.PodCIDR, "pod-cidr", "", "Service CIDR of the Kubernetes cluster. If not specified, OMS will try to determine it.")
+	flags.StringVar(&bootstrapLocalCmd.CodesphereEnv.PodCIDR, "pod-cidr", "", "Pod CIDR of the Kubernetes cluster. If not specified, OMS will try to determine it.")
 
 	// Config
 	flags.StringVar(&bootstrapLocalCmd.CodesphereEnv.InstallDir, "install-dir", ".installer", "Directory for config, secrets, and bundle files")
@@ -164,27 +166,7 @@ func (c *BootstrapLocalCmd) resolveRegistryPassword() error {
 }
 
 func (c *BootstrapLocalCmd) ConfirmLocalBootstrapWarning() error {
-	fmt.Println(csio.Long(`
-		############################################################
-		# Local Bootstrap Warning                                  #
-		############################################################
-		#
-		# Codesphere local bootstrap is for testing only.
-		#
-		# Currently supported:
-		# - One Kubernetes cluster with Linux x86_64 nodes only
-		# - Kubernetes Cluster on Linux with a VM and an extra disk for Rook/Ceph
-		#   (use --k0s flag for k0s specific configuration)
-		#
-		# Not supported:
-		# - Minikube on macOS
-		#
-		# Never run Rook directly on your host system; local disks may be consumed.
-		#
-		# Recommended command:
-		#   minikube start --disk-size=40g --extra-disks=1 --driver kvm2
-		############################################################
-	`))
+	fmt.Println(csio.Long(localBootstrapWarningText()))
 
 	if c.Yes {
 		return nil
@@ -204,13 +186,44 @@ func (c *BootstrapLocalCmd) ConfirmLocalBootstrapWarning() error {
 	return nil
 }
 
+func localBootstrapWarningText() string {
+	return `
+		############################################################
+		# Local Bootstrap Warning                                  #
+		############################################################
+		#
+		# Codesphere local bootstrap is for testing only.
+		#
+		# Currently supported:
+		# - One Kubernetes cluster with Linux x86_64 nodes only
+		# - Kubernetes Cluster on Linux with a VM and an extra disk for Rook/Ceph
+		#   (use --k0s flag for k0s specific configuration)
+		# - macOS host with a Linux VM-backed Kubernetes cluster
+		#
+		# Not supported:
+		# - Host-native macOS clusters are not supported
+		# - Minikube on macOS without Linux VM-backed worker nodes
+		#
+		# Never run Rook directly on your host system; local disks may be consumed.
+		#
+		# Recommended Linux command:
+		#   minikube start --disk-size=40g --extra-disks=1 --driver kvm2
+		#
+		# Recommended macOS workflow:
+		# - Create a Linux VM-backed Kubernetes cluster
+		# - Point KUBECONFIG at that cluster from your macOS host
+		# - Run oms beta bootstrap-local from macOS
+		############################################################
+	`
+}
+
 func (c *BootstrapLocalCmd) GetKubeClient(ctx context.Context) (ctrlclient.Client, *rest.Config, error) {
 	kubeConfig, err := ctrlconfig.GetConfig()
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to load Kubernetes config: %w", err)
 	}
 
-	scheme := runtime.NewScheme()
+	scheme := kruntime.NewScheme()
 	if err := clientgoscheme.AddToScheme(scheme); err != nil {
 		return nil, nil, fmt.Errorf("failed to add Kubernetes core scheme: %w", err)
 	}
@@ -231,6 +244,10 @@ func (c *BootstrapLocalCmd) GetKubeClient(ctx context.Context) (ctrlclient.Clien
 }
 
 func (c *BootstrapLocalCmd) ValidatePrerequisites(ctx context.Context) error {
+	if err := c.ValidateHostTools(); err != nil {
+		return err
+	}
+
 	if err := c.ValidateKubernetesCluster(ctx); err != nil {
 		return err
 	}
@@ -241,6 +258,22 @@ func (c *BootstrapLocalCmd) ValidatePrerequisites(ctx context.Context) error {
 
 	if err := c.ValidateEncryptionTools(); err != nil {
 		return err
+	}
+
+	return nil
+}
+
+func (c *BootstrapLocalCmd) ValidateHostTools() error {
+	if runtime.GOOS == "linux" {
+		return nil
+	}
+
+	if _, err := exec.LookPath("kubectl"); err != nil {
+		return fmt.Errorf("kubectl binary not found in PATH; install it with: brew install kubectl")
+	}
+
+	if _, err := exec.LookPath("node"); err != nil {
+		return fmt.Errorf("node binary not found in PATH; install it with: brew install node")
 	}
 
 	return nil
