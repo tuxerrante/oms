@@ -40,6 +40,8 @@ internal/util/testdata/
 
 # IDE files
 .vscode/
+.worktrees/
+worktrees/
 
 # OS files
 .DS_Store

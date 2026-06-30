@@ -1,12 +1,30 @@
 // Copyright (c) Codesphere Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-//go:build integration
-// +build integration
-
 package cmd_test
 
-import "errors"
+import (
+	"errors"
+	"os"
+
+	. "github.com/onsi/ginkgo/v2"
+)
+
+const runIntegrationTestsEnvVar = "OMS_RUN_INTEGRATION_TESTS"
+
+func requireIntegrationTestsEnabled() {
+	if os.Getenv(runIntegrationTestsEnvVar) != "true" {
+		Skip("set OMS_RUN_INTEGRATION_TESTS=true to run integration tests")
+	}
+}
+
+func requirePortalIntegrationEnv() {
+	requireIntegrationTestsEnabled()
+
+	if os.Getenv("OMS_PORTAL_API_KEY") == "" || os.Getenv("OMS_PORTAL_API") == "" {
+		Fail("integration tests require OMS_PORTAL_API_KEY and OMS_PORTAL_API")
+	}
+}
 
 // interface for tests and allows injecting a specific API key and API URL without modifying process env
 type testEnv struct {

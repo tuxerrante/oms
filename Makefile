@@ -11,8 +11,8 @@ test:
 	go test -count=1 -v ./...
 
 test-integration:
-	# Run integration tests with build tag
-	go test -count=1 -v -tags=integration ./cli/...
+	# Run integration tests behind explicit runtime gate
+	OMS_RUN_INTEGRATION_TESTS=true go test -count=1 -v ./cli/cmd
 
 format:
 	go fmt ./...
