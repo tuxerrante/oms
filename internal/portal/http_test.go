@@ -55,6 +55,19 @@ var _ = Describe("HttpWrapper", func() {
 	})
 
 	Describe("Request", func() {
+		Context("when the request cannot be created", func() {
+			BeforeEach(func() {
+				testUrl = "://invalid-url"
+			})
+
+			It("returns an error instead of terminating the process", func() {
+				result, err := httpWrapper.Request(testUrl, testMethod, testBody)
+				Expect(err).To(HaveOccurred())
+				Expect(err.Error()).To(ContainSubstring("failed to create request"))
+				Expect(result).To(Equal([]byte{}))
+			})
+		})
+
 		Context("when making a successful GET request", func() {
 			JustBeforeEach(func() {
 				response = &http.Response{
