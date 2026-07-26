@@ -45,6 +45,53 @@ var _ = Describe("Ceph", func() {
 			_, err := cephHostsFromObjectStore(store)
 			Expect(err).To(HaveOccurred())
 		})
+
+		It("deduplicates endpoints with the same hostname", func() {
+			store := &rookcephv1.CephObjectStore{}
+			store.Name = "s3-ms-provider"
+			store.Status = &rookcephv1.ObjectStoreStatus{
+				Endpoints: rookcephv1.ObjectEndpoints{
+					Insecure: []string{
+						"http://rgw.rook-ceph.svc:80",
+						"http://rgw.rook-ceph.svc:8080",
+					},
+				},
+			}
+
+			hosts, err := cephHostsFromObjectStore(store)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(hosts).To(HaveLen(1))
+			Expect(hosts[0].Hostname).To(Equal("rgw.rook-ceph.svc"))
+		})
+	})
+
+	Describe("parseObjectStoreEndpointHost", func() {
+		It("extracts hostname from a valid endpoint", func() {
+			host, err := parseObjectStoreEndpointHost("http://rook-ceph-rgw.rook-ceph.svc:80")
+			Expect(err).NotTo(HaveOccurred())
+			Expect(host).To(Equal("rook-ceph-rgw.rook-ceph.svc"))
+		})
+
+		It("trims whitespace before parsing", func() {
+			host, err := parseObjectStoreEndpointHost("  http://rgw.svc:80  \n")
+			Expect(err).NotTo(HaveOccurred())
+			Expect(host).To(Equal("rgw.svc"))
+		})
+
+		It("rejects a schemeless string", func() {
+			_, err := parseObjectStoreEndpointHost("not-a-url")
+			Expect(err).To(HaveOccurred())
+		})
+
+		It("rejects a bare path with no hostname", func() {
+			_, err := parseObjectStoreEndpointHost("/relative/path")
+			Expect(err).To(HaveOccurred())
+		})
+
+		It("rejects an empty string", func() {
+			_, err := parseObjectStoreEndpointHost("")
+			Expect(err).To(HaveOccurred())
+		})
 	})
 
 	Describe("rgwUserCredentialsFromSecret", func() {
