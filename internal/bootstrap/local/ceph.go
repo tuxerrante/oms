@@ -299,7 +299,7 @@ func cephHostsFromObjectStore(store *rookcephv1.CephObjectStore) ([]files.CephHo
 }
 
 func parseObjectStoreEndpointHost(endpoint string) (string, error) {
-	parsed, err := url.Parse(strings.TrimSpace(endpoint))
+	parsed, err := url.ParseRequestURI(strings.TrimSpace(endpoint))
 	if err != nil {
 		return "", err
 	}

@@ -149,7 +149,7 @@ func (p *PCApps) Install(ctx context.Context) error {
 		return err
 	}
 
-	parsed, err := url.Parse(chartURL)
+	parsed, err := url.ParseRequestURI(chartURL)
 	if err != nil {
 		return fmt.Errorf("parsing chart URL %q: %w", chartURL, err)
 	}
