@@ -168,7 +168,7 @@ func (c *PortalClient) ListBuilds(product Product, sort string) (Builds, error) 
 	if err != nil {
 		return Builds{}, fmt.Errorf("failed to generate URL: %w", err)
 	}
-	u, parseErr := url.Parse(requestUrl)
+	u, parseErr := url.ParseRequestURI(requestUrl)
 	if parseErr != nil {
 		return Builds{}, fmt.Errorf("failed to parse URL: %w", parseErr)
 	}

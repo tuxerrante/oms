@@ -41,7 +41,7 @@ func NewClient(baseURL, token string) (*APIClient, error) {
 		return nil, fmt.Errorf("token is required")
 	}
 
-	parsedURL, err := url.Parse(baseURL)
+	parsedURL, err := url.ParseRequestURI(baseURL)
 	if err != nil {
 		return nil, fmt.Errorf("invalid baseURL: %w", err)
 	}
