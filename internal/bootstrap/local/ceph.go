@@ -608,7 +608,8 @@ func (b *LocalBootstrapper) retryWithBackoff(timeout time.Duration, timeoutMsg s
 	}
 
 	if isRetryableWaitError(err) {
-		return fmt.Errorf("%s", timeoutMsg)
+		// Keep the last observed transient cause so timeouts stay diagnosable.
+		return fmt.Errorf("%s: %w", timeoutMsg, err)
 	}
 
 	return err
@@ -619,13 +620,13 @@ func (b *LocalBootstrapper) waitForRGWPod() (*corev1.Pod, error) {
 
 	err := b.retryWithBackoff(cephObjectUserReadyTimeout,
 		fmt.Sprintf("timed out waiting for an RGW pod for object store %q", rgwObjectStoreName),
-		func(_ context.Context) error {
-			currentPod, err := b.getRGWPod()
+		func(ctx context.Context) error {
+			// getRGWPod already classifies transient RGW availability states as
+			// retryable. Any other error (API, authorization, serialization) is
+			// terminal and must abort the retry loop immediately.
+			currentPod, err := b.getRGWPod(ctx)
 			if err != nil {
-				if isRetryableWaitError(err) {
-					return err
-				}
-				return &retryableWaitError{err: err}
+				return err
 			}
 			pod = currentPod
 			return nil
@@ -638,10 +639,10 @@ func (b *LocalBootstrapper) waitForRGWPod() (*corev1.Pod, error) {
 	return pod, nil
 }
 
-func (b *LocalBootstrapper) getRGWPod() (*corev1.Pod, error) {
+func (b *LocalBootstrapper) getRGWPod(ctx context.Context) (*corev1.Pod, error) {
 	serviceName := "rook-ceph-rgw-" + rgwObjectStoreName
 	service := &corev1.Service{}
-	if err := b.kubeClient.Get(b.ctx, client.ObjectKey{Name: serviceName, Namespace: rookNamespace}, service); err != nil {
+	if err := b.kubeClient.Get(ctx, client.ObjectKey{Name: serviceName, Namespace: rookNamespace}, service); err != nil {
 		if apierrors.IsNotFound(err) {
 			return nil, &retryableWaitError{err: fmt.Errorf("RGW service %q not found yet", serviceName)}
 		}
@@ -653,7 +654,7 @@ func (b *LocalBootstrapper) getRGWPod() (*corev1.Pod, error) {
 	}
 
 	pods := &corev1.PodList{}
-	if err := b.kubeClient.List(b.ctx, pods, client.InNamespace(rookNamespace), client.MatchingLabels(service.Spec.Selector)); err != nil {
+	if err := b.kubeClient.List(ctx, pods, client.InNamespace(rookNamespace), client.MatchingLabels(service.Spec.Selector)); err != nil {
 		return nil, fmt.Errorf("failed to list RGW pods for service %q: %w", serviceName, err)
 	}
 
